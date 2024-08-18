@@ -36,7 +36,7 @@ class Transceiver:
 
         with self.mtx:
             self.serial.write(pack)
-            print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
+            #print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
             sent_ms = round(time.time() * 1000)
             
             rsp = ResponseTelegram(self.senderID)
@@ -50,10 +50,10 @@ class Transceiver:
                 if len(r) == 0:
                     print("!", end='')
                 else:
-                    print(".", end='')
+             #       print(".", end='')
                     complete = rsp.add_byte(r[0])
 
-            print("OK")
+            #print("OK")
             return rsp.get_data()
 
 class ResponseTelegram:

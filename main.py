@@ -2,8 +2,10 @@
 from RS485_Device import RS485_Device
 from Transceiver import Transceiver
 from GPIO_Input_Bank import GPIO_Input_Bank
+from GPIO_Input_Bank_2 import GPIO_Input_Bank_2
 from Mqtt import Mqtt
 from time import sleep
+from Dimmers import Dimmers
 import RPi.GPIO as GPIO
 
 
@@ -11,7 +13,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(27, GPIO.OUT)
 
 tr = Transceiver('/dev/ttyAMA0',19200, 0x77)
-mqtt = Mqtt('localhost', 1883, 'zigbee', 'zigbee', 'rs485')
+mqtt = Mqtt('casa.frugoli.de', 1883, 'zigbee', 'zigbee', 'rs485')
 mqtt.connect()
 devs = []
 
@@ -19,6 +21,11 @@ devs.append(RS485_Device(tr, 0x10, 'EG'))
 devs[-1].add_module(GPIO_Input_Bank(1))
 devs.append(RS485_Device(tr, 0x11, 'OG'))
 devs[-1].add_module(GPIO_Input_Bank(1))
+
+devs.append(RS485_Device(tr, 0x21, 'Kino'))
+devs[-1].add_module(GPIO_Input_Bank_2())
+devs[-1].add_module(Dimmers(5))
+
 
 i = 0
 while(True):
