@@ -32,17 +32,17 @@ class RS485_Device:
             
             if self.available == False:
                 if self.success_counter > 0:
-                    mqtt.pub(self.topic_suffix + '/availability', 'ONLINE')
+                    mqtt.pub(self.topic_suffix + '/availability', 'ONLINE', True)
                     self.available = True
                 else:
-                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE')
-                    mqtt.pub(self.topic_suffix + '/error_rate', 'n/a')
+                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE', True)
+                    mqtt.pub(self.topic_suffix + '/error_rate', 0)
         
             if self.update_counter % 32 == 0:
                 if self.error_counter == 32:
                     self.available = False
-                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE')
-                    mqtt.pub(self.topic_suffix + '/error_rate', 'n/a')
+                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE', True)
+                    mqtt.pub(self.topic_suffix + '/error_rate', 0)
                 else:
                     mqtt.pub(self.topic_suffix + '/error_rate', (self.error_counter*100)/(self.error_counter + self.success_counter))
                 

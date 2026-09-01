@@ -33,11 +33,11 @@ class Mqtt:
     def disconnect(self):
         self.client.disconnect()
 
-    def pub(self, topic_suffix, data):
+    def pub(self, topic_suffix, data, retain=False):
         topic = self.base_topic + '/' + topic_suffix
         if os.environ.get('DEBUG'):
             print("MQTT: publish '%s' to '%s'" % (data, topic))
-        self.client.publish(topic, payload=data)
+        self.client.publish(topic, payload=data, retain=retain)
         
     def register_topic(self, topic_suffix, callback):
         topic = self.base_topic + '/' + topic_suffix
