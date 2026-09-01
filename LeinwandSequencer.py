@@ -34,7 +34,11 @@ class LeinwandSequencer:
         mqtt.pub(topic + str(channel), val)
 
     def send_mqtt_sensor_update(self, bank, pin, bank_val, mqtt, topic):
-        val = (bank_val & (1 << pin)) == 0
+        if (bank_val & (1 << pin)) == 0):
+            val = '1'
+        else:
+            val = '0'
+
         mqtt.pub(topic + '/sensor/' + str(bank) + '/' + str(pin), val)
 
         SENSORS = [['KLAPPE_UNTEN_RECHTS','KLAPPE_UNTEN_LINKS','SEGEL_VORNE_RECHTS','SEGEL_VORNE_LINKS','SEGEL_HINTEN_RECHTS','SEGEL_HINTEN_LINKS','LW_UNTEN','LW_OBEN'],['TUER','LW_MITTE','KLAPPE_OBEN_RECHTS','KLAPPE_OBEN_LINKS','n-a','n-a','n-a','n-a']]
