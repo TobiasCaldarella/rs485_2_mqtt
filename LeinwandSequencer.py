@@ -61,7 +61,7 @@ class LeinwandSequencer:
             print("State: '%s'" % (STATES[state]))
 
     def send_mqtt_direction_update(self, direction):
-        DIRECTIONS = ['STOPP', 'LW_RAUF', 'LW_RUNTER']
+        DIRECTIONS = ['STOPP', 'UP', 'DOWN']
         if direction > 2:
             print("ERR: direction = %i" % direction)
             return
