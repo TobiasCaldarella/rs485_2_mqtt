@@ -34,21 +34,19 @@ class LeinwandSequencer:
         mqtt.pub(topic + str(channel), val)
 
     def send_mqtt_sensor_update(self, bank, pin, bank_val, mqtt, topic):
-        val = (bank_val & (1 << pin)) != 0
+        val = (bank_val & (1 << pin)) == 0
         mqtt.pub(topic + '/sensor/' + str(bank) + '/' + str(pin), val)
 
-    def send_mqtt_motor_update(self, pin, bank_val, mqtt, topic):
-        val = (bank_val & (1 << pin)) != 0
-        mqtt.pub(topic + '/motor/' + str(pin), val)
+        SENSORS = [['KLAPPE_UNTEN_RECHTS','KLAPPE_UNTEN_LINKS','SEGEL_VORNE_RECHTS','SEGEL_VORNE_LINKS','SEGEL_HINTEN_RECHTS','SEGEL_HINTEN_LINKS','LW_UNTEN','LW_OBEN'],['TUER','LW_MITTE','KLAPPE_OBEN_RECHTS','KLAPPE_OBEN_LINKS','n-a','n-a','n-a','n-a']]
+        mqtt.pub(topic + '/sensor/' + SENSORS[bank][pin], val)
 
     def send_mqtt_motor_active_update(self, bank_val, mqtt, topic):
-        MOTORS = ['PINM_KLAPPEN_RUNTER','PINM_KLAPPEN_RAUF','PINM_LW_RUNTER','PINM_LW_RAUF','PINM_SEGEL_VOR','PINM_SEGEL_RUECK','PINM_LW_RUNTER2','PINM_LW_RAUF2']
-        active_motor = 'NONE'
-        for i in range(0,8):
-            active = bank_val & (1<<i)
-            if active:
-                active_motor = MOTORS[i]
-        mqtt.pub(topic + '/motor_active', active_motor)
+        MOTORS = {4:'KLAPPEN_RUNTER',5:'KLAPPEN_RAUF',6:'LW_RUNTER',8:'LW_RAUF',7:'SEGEL_VOR',9:'SEGEL_RUECK',15:'LW_RUNTER2',16:'LW_RAUF2',0xff:'NONE'}
+        if bank_val not in MOTORS:
+            active = 'INVALID'
+        else:
+            active = MOTORS[bank_val]
+        mqtt.pub(topic + '/motor_active', active)
 
     def send_mqtt_state_update(self, state, mqtt, topic):
         mqtt.pub(topic + '/state_num', state)
@@ -59,6 +57,9 @@ class LeinwandSequencer:
 
     def send_mqtt_direction_update(self, direction, mqtt, topic):
         DIRECTIONS = ['STOPP', 'LW_RAUF', 'LW_RUNTER']
+        if direction > 2:
+            print("ERR: direction = %i" % direction)
+            return
         mqtt.pub(topic + '/direction', DIRECTIONS[direction])
         if os.environ.get('DEBUG'):
             print("Direction: '%s'" % (DIRECTIONS[direction]))
@@ -92,12 +93,12 @@ class LeinwandSequencer:
                     if force is True or self.sensor1 != val1:
                         for i in range(0,8):
                             if force is True or (val1 & (1<<i)) != (self.sensor1 & (1<<i)):
-                                self.send_mqtt_sensor_update(1, i, val1, mqtt, topic)
+                                self.send_mqtt_sensor_update(0, i, val1, mqtt, topic)
                     
                     if force is True or self.sensor2 != val2:
                         for i in range(0,8):
                             if force is True or (val2 & (1<<i)) != (self.sensor2 & (1<<i)):
-                                self.send_mqtt_sensor_update(2, i, val2, mqtt, topic)
+                                self.send_mqtt_sensor_update(1, i, val2, mqtt, topic)
                     self.sensor1 = val1
                     self.sensor2 = val2
             
@@ -110,11 +111,8 @@ class LeinwandSequencer:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x01))
                 else:
                     val = rsp[2]
-                    if force is True or self.sensor1 != val1:
-                        for i in range(0,8):
-                            if force is True or (val & (1<<i)) != (self.motor & (1<<i)):
-                                self.send_mqtt_motor_update(i, val, mqtt, topic)
-                self.send_mqtt_motor_active_update(val, mqtt, topic)
+                    if force is True or self.motor != val:
+                        self.send_mqtt_motor_active_update(val, mqtt, topic)
 
             if val & 0x04 or force:
                 if os.environ.get('DEBUG'):

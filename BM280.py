@@ -19,7 +19,7 @@ class BM280:
         if not force:
             return
         req = bytes([0x08, self.idx, 0x0])
-        rsp = self.tr.req_resp(addr, req, False)
+        rsp = self.tr.req_resp(addr, req)
         #print(rsp)
         if rsp is None:
             self.err_cnt = self.err_cnt + 1

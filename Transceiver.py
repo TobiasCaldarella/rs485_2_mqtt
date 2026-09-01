@@ -15,36 +15,6 @@ class Transceiver:
         self.senderID = senderID
         self.mtx = Lock()
 
-    def _send_recv(self, receiver, data_to_send, retry_cnt):
-        self.serial.write(pack)
-        #print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
-        sent_ms = round(time.time() * 1000)
-           
-        rsp = ResponseTelegram(self.senderID)
-        complete = False
-        while complete == False:
-            r = self.serial.read(1)
-            if ((round(time.time() * 1000) - sent_ms) > 200):
-                print("Timeout! (addr=%x)" % receiver)
-                #time.sleep(0.5)
-                return None
-            if len(r) == 0:
-                print("!", end='')
-            else:
-                if os.environ.get('DEBUG'):
-                    print("0x%x " % r[0], end='')
-                complete = rsp.add_byte(r[0])
-        
-        if rsp.is_nak():
-            if os.environ.get('DEBUG'):
-                print("NAK (addr=%x, try=%d)" % (receiver, retry_cnt))
-                return None
-
-        if os.environ.get('DEBUG'):
-            print("OK (addr=%x, try=%d)" % (receiver, retry_cnt))
-        time.sleep(0.1)
-        return rsp.get_data()
-        
     # sends a request and returns the response
     def req_resp(self, receiver: int, request: bytes):
         # package
@@ -67,13 +37,28 @@ class Transceiver:
         pack = bytes([0x01, receiver, self.senderID, len(request), 0x02]) + request + bytes([chksum, 0x03, 0x04])
         
         with self.mtx:
-            retry_cnt = 1
-            while retry_cnt <= 3:
-                rsp_data = _send_recv(receiver, pack, retry_cnt)
-                if rsp_data is not None:
-                    return rsp_data
-                retry_cnt = retry_cnt + 1
-            return None
+            self.serial.write(pack)
+            #print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
+            sent_ms = round(time.time() * 1000)
+            
+            rsp = ResponseTelegram(self.senderID)
+            complete = False
+            while complete == False:
+                r = self.serial.read(1)
+                if ((round(time.time() * 1000) - sent_ms) > 200):
+                    print("Timeout! (addr=%x)" % receiver)
+                    time.sleep(0.1)
+                    return None
+                if len(r) == 0:
+                    print("!", end='')
+                else:
+                    if os.environ.get('DEBUG'):
+                        print("0x%x " % r[0], end='')
+                    complete = rsp.add_byte(r[0])
+            if os.environ.get('DEBUG'):
+                print("OK")
+            time.sleep(0.1)
+            return rsp.get_data()
 
 class ResponseTelegram:
     def __init__(self, myID):
@@ -146,9 +131,4 @@ class ResponseTelegram:
     def get_data(self):
         return self.rsp
 
-    def is_nak(self):
-        if len(self.rsp) and self.rsp[0] == 0xff:
-            return True
-        else:
-            return False
 
