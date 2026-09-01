@@ -43,7 +43,7 @@ devs.append(RS485_Device(tr, 0x31, 'Katzenfenster'))
 devs[-1].add_module(Katzenfenster(mqtt, 'Katzenfenster', 0x31))
 #devs=[]
 devs.append(RS485_Device(tr, 0x44, 'Leinwand'))
-devs[-1].add_module(LeinwandSequencer())
+devs[-1].add_module(LeinwandSequencer(mqtt, 'Leinwand', 0x44))
 
 i = 0
 while(True):

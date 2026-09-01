@@ -2,14 +2,17 @@
 import os
 
 class LeinwandSequencer:
-    def __init__(self):
+    def __init__(self, mqtt, topic, addr):
         #self.reg = register
-        self.tr = None
+        self.tr      = None
         self.sensor1 = 0
         self.sensor2 = 0
         self.motor   = 0
         self.state   = 0
+        self.addr    = addr
 
+        mqtt.register_topic(topic + "/command", lambda client, userdata, msg: self.send_command_to_device(msg.payload.decode("utf-8")))
+        
         # register mqtt topics
         #for i in range(0,self.num_channels):
         #    topic = self.topic + '/Dimmers/set/' + str(i)
@@ -18,23 +21,30 @@ class LeinwandSequencer:
     def set_transceiver(self, transceiver):
         self.tr = transceiver
         
-#    def set_value(self, channel, val):
-#        if channel >= 8 or val > 255:
-#            print("channel %i or value %i invalid" % (channel, val))
-#        else:
-#            print("setting channel %i to %i" % (channel, val))
-#            req = bytes([0x80, channel, val])
-#            rsp = self.tr.req_resp(self.addr, req, False)
-#            if rsp is None:
-#                print('Did not get any response!')
-#            elif rsp[0] != 0x80 or rsp[1] != channel:
-#                print("did not get expected response. got: 0x%x 0x%x 0x%x" % (rsp[0], rsp[1], rsp[2]))
+    def send_command_to_device(self, command):
+        print("issueing command '%s' to LeinwandSequencer" % command)
+        if command in ["open", "Open", "OPEN", "up", "Up", "UP"]:
+            cmd = 0x01
+        elif command in ["close", "Close", "CLOSE", "down", "Down", "DOWN"]:
+            cmd = 0x02
+        elif command in ["stop", "Stop", "STOP"]:
+            cmd = 0x00
+        else:
+            print("invalid command")
+            return
+        
+        req = bytes([0x08, 0x00, cmd]) 
+        rsp = self.tr.req_resp(self.addr, req, False)
+        if rsp is None:
+            print('Did not get any response!')
+        elif rsp[0] != 0x04 or rsp[2] != cmd:
+            print("did not get expected response")
 
     def send_mqtt_update(self, channel, val, mqtt, topic):
         mqtt.pub(topic + str(channel), val)
 
     def send_mqtt_sensor_update(self, bank, pin, bank_val, mqtt, topic):
-        if (bank_val & (1 << pin)) == 0):
+        if (bank_val & (1 << pin)) == 0:
             val = '1'
         else:
             val = '0'
@@ -133,7 +143,7 @@ class LeinwandSequencer:
                 else:
                     val = rsp[2]
                     if force is True or (val & (0b11 << 4)) != (self.state & (0b11 << 4)):
-                        self.send_mqtt_direction_update((val&(0b11<<4)>>4), mqtt, topic)
+                        self.send_mqtt_direction_update((val>>4)&0b11, mqtt, topic)
                     if force is True or (val & 0x0f) != (self.state & 0x0f):
                         self.send_mqtt_state_update(val&0x0f, mqtt, topic)
 

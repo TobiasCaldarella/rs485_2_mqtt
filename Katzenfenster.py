@@ -76,7 +76,7 @@ class Katzenfenster:
             if rsp is None:
                 print('Did not get any response!')
             elif rsp[0] != 0x04 or rsp[1] != keep_open_min or rsp[2] != cmd:
-                print("did not get expected response. got: 0x%x 0x%x 0x%x" % (rsp[0], rsp[1]))
+                print("did not get expected response.")
 
     def send_mqtt_motor_current(self, current, mqtt, topic):
         mqtt.pub(topic + '/motor_current', int(current))
