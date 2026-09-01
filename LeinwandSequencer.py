@@ -17,11 +17,11 @@ class LeinwandSequencer:
     
     def send_command_to_device(self, command):
         print("issueing command '%s' to LeinwandSequencer" % command)
-        if command in ["open", "Open", "OPEN", "up", "Up", "UP"]:
+        if command in ["open", "Open", "OPEN", "up", "Up", "UP", "0"]:
             cmd = 0x01
-        elif command in ["close", "Close", "CLOSE", "down", "Down", "DOWN"]:
+        elif command in ["close", "Close", "CLOSE", "down", "Down", "DOWN", "100"]:
             cmd = 0x02
-        elif command in ["stop", "Stop", "STOP"]:
+        elif command in ["stop", "Stop", "STOP", "X", "x"]:
             cmd = 0x00
         else:
             print("invalid command")
@@ -31,7 +31,7 @@ class LeinwandSequencer:
         rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
         if rsp is None:
             print('Did not get any response!')
-        elif rsp[0] != 0x04 or rsp[2] != cmd:
+        elif rsp[0] != 0x08 or rsp[2] != cmd:
             print("did not get expected response")
 
     def send_mqtt_sensor_update(self, bank, pin, bank_val):
@@ -55,13 +55,16 @@ class LeinwandSequencer:
 
     def send_mqtt_state_update(self, state):
         self.rs485.mqtt.pub(self.rs485.topic + '/state_num', state)
+        if state > 9:
+            print("Invalid state %d" % state)
+            return
         STATES = ['IDLE', 'BEGIN', 'KLAPPEN_1',	'SEGEL_1', 'LW', 'LW2',	'SEGEL_2', 'KLAPPEN_2',	'END', 'IDLE2']
         self.rs485.mqtt.pub(self.rs485.topic + '/state', STATES[state])
         if os.environ.get('DEBUG'):
             print("State: '%s'" % (STATES[state]))
 
     def send_mqtt_direction_update(self, direction):
-        DIRECTIONS = ['STOPP', 'UP', 'DOWN']
+        DIRECTIONS = ['STOP', 'UP', 'DOWN']
         if direction > 2:
             print("ERR: direction = %i" % direction)
             return
