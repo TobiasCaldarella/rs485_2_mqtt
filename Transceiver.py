@@ -3,16 +3,48 @@ import serial
 import serial.rs485
 from threading import Lock
 import time
+import os
 
 class Transceiver:
     def __init__(self, port, baudrate, senderID):
-        ser = serial.Serial(port, baudrate, timeout=0.05)
-        rs485_settings = serial.rs485.RS485Settings(rts_level_for_tx=True, rts_level_for_rx=False, loopback=False, delay_before_tx=0, delay_before_rx=0)
-        ser.rs485_mode = rs485_settings
+        #ser = serial.Serial(port, baudrate, timeout=0.01)
+        ser = serial.Serial(port, baudrate, timeout=0.1)
+        rs485_settings = serial.rs485.RS485Settings(rts_level_for_tx=True, rts_level_for_rx=False, loopback=False, delay_before_tx=0.05, delay_before_rx=0.005)
+#        ser.rs485_mode = rs485_settings
         self.serial = ser
         self.senderID = senderID
         self.mtx = Lock()
 
+    def _send_recv(self, receiver, data_to_send, retry_cnt):
+        self.serial.write(pack)
+        #print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
+        sent_ms = round(time.time() * 1000)
+           
+        rsp = ResponseTelegram(self.senderID)
+        complete = False
+        while complete == False:
+            r = self.serial.read(1)
+            if ((round(time.time() * 1000) - sent_ms) > 200):
+                print("Timeout! (addr=%x)" % receiver)
+                #time.sleep(0.5)
+                return None
+            if len(r) == 0:
+                print("!", end='')
+            else:
+                if os.environ.get('DEBUG'):
+                    print("0x%x " % r[0], end='')
+                complete = rsp.add_byte(r[0])
+        
+        if rsp.is_nak():
+            if os.environ.get('DEBUG'):
+                print("NAK (addr=%x, try=%d)" % (receiver, retry_cnt))
+                return None
+
+        if os.environ.get('DEBUG'):
+            print("OK (addr=%x, try=%d)" % (receiver, retry_cnt))
+        time.sleep(0.1)
+        return rsp.get_data()
+        
     # sends a request and returns the response
     def req_resp(self, receiver: int, request: bytes):
         # package
@@ -33,28 +65,15 @@ class Transceiver:
             chksum ^= b
 
         pack = bytes([0x01, receiver, self.senderID, len(request), 0x02]) + request + bytes([chksum, 0x03, 0x04])
-
+        
         with self.mtx:
-            self.serial.write(pack)
-            #print("Wrote %i bytes to %i, receiving:" % (len(pack), receiver), end='')
-            sent_ms = round(time.time() * 1000)
-            
-            rsp = ResponseTelegram(self.senderID)
-            complete = False
-            while complete == False:
-                r = self.serial.read(1)
-                if ((round(time.time() * 1000) - sent_ms) > 150):
-                    print("Timeout!")
-                    time.sleep(0.1)
-                    return None
-                if len(r) == 0:
-                    print("!", end='')
-                else:
-             #       print(".", end='')
-                    complete = rsp.add_byte(r[0])
-
-            #print("OK")
-            return rsp.get_data()
+            retry_cnt = 1
+            while retry_cnt <= 3:
+                rsp_data = _send_recv(receiver, pack, retry_cnt)
+                if rsp_data is not None:
+                    return rsp_data
+                retry_cnt = retry_cnt + 1
+            return None
 
 class ResponseTelegram:
     def __init__(self, myID):
@@ -68,7 +87,7 @@ class ResponseTelegram:
 
     def add_byte(self, r):
         if self.state == 0:
-            if r == 0x01:
+            if r == 0x01 or r ==0x00: # workaround for "strange" rs485 transceiver that start's with a zero...
                 self.state = 1
                 self.rsp = None
                 self.forMe = False
@@ -127,4 +146,9 @@ class ResponseTelegram:
     def get_data(self):
         return self.rsp
 
+    def is_nak(self):
+        if len(self.rsp) and self.rsp[0] == 0xff:
+            return True
+        else:
+            return False
 

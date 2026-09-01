@@ -3,6 +3,7 @@
 import paho.mqtt.client as mqtt
 from paho.mqtt.client import MQTT_ERR_SUCCESS
 from time import sleep
+import os
 
 class Mqtt:
     def __init__(self, host, port, user, pw, base_topic):
@@ -27,11 +28,23 @@ class Mqtt:
     def connect(self):
         if self.client.connect(self.host, self.port) is not MQTT_ERR_SUCCESS:
             print("MQTT connection failed!")
+        self.client.loop_start()
 
     def disconnect(self):
         self.client.disconnect()
 
     def pub(self, topic_suffix, data):
         topic = self.base_topic + '/' + topic_suffix
-        print("MQTT: publish '%s' to '%s'" % (data, topic))
+        if os.environ.get('DEBUG'):
+            print("MQTT: publish '%s' to '%s'" % (data, topic))
         self.client.publish(topic, payload=data)
+        
+    def register_topic(self, topic_suffix, callback):
+        topic = self.base_topic + '/' + topic_suffix
+        self.client.message_callback_add(topic, callback)
+        self.client.subscribe(topic)
+        print("MQTT: registerd to '%s'" % topic)
+       
+    def loop(self):
+        pass
+#        self.client.loop(0.05)
