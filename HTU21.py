@@ -6,10 +6,10 @@ class HTU21:
     def __init__(self):
         self.TwoFloat = TwoFloat('HTU21', 'temp', 'humid')
 
-    def set_transceiver(self, transceiver):
-        self.TwoFloat.set_transceiver(transceiver)
+    def set_transceiver(self, rs485_dev):
+        self.TwoFloat.set_transceiver(rs485_dev)
 
-    def update(self, addr, mqt, topic, force):
-        return self.TwoFloat.update(addr, mqt, topic, force, True)
+    def update(self, force):
+        return self.TwoFloat.update(force, True)
 
 

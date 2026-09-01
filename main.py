@@ -26,29 +26,29 @@ mqtt = Mqtt('casa.frugoli.de', 1883, 'zigbee', 'zigbee', 'rs485')
 mqtt.connect()
 devs = []
 
-devs.append(RS485_Device(tr, 0x10, 'EG'))
+devs.append(RS485_Device(tr, 0x10, 'EG', mqtt))
 devs[-1].add_module(GPIO_Input_Bank_2())
-devs.append(RS485_Device(tr, 0x11, 'OG'))
+devs.append(RS485_Device(tr, 0x11, 'OG', mqtt))
 devs[-1].add_module(GPIO_Input_Bank_2())
-devs.append(RS485_Device(tr, 0x12, 'DG'))
+devs.append(RS485_Device(tr, 0x12, 'DG', mqtt))
 devs[-1].add_module(GPIO_Input_Bank_2())
 devs[-1].add_module(BM280())
 
-devs.append(RS485_Device(tr, 0x21, 'Kino'))
+devs.append(RS485_Device(tr, 0x21, 'Kino', mqtt))
 devs[-1].add_module(GPIO_Input_Bank_2())
-devs[-1].add_module(Dimmers(4, mqtt, 'Kino', 0x21))
+devs[-1].add_module(Dimmers(4))
 devs[-1].add_module(HTU21())
 
-devs.append(RS485_Device(tr, 0x31, 'Katzenfenster'))
-devs[-1].add_module(Katzenfenster(mqtt, 'Katzenfenster', 0x31))
+devs.append(RS485_Device(tr, 0x31, 'Katzenfenster', mqtt))
+devs[-1].add_module(Katzenfenster())
 #devs=[]
-devs.append(RS485_Device(tr, 0x44, 'Leinwand'))
-devs[-1].add_module(LeinwandSequencer(mqtt, 'Leinwand', 0x44))
+devs.append(RS485_Device(tr, 0x44, 'Leinwand', mqtt))
+devs[-1].add_module(LeinwandSequencer())
 
 i = 0
 while(True):
     for dev in devs:
-        dev.update(mqtt, force=(False))
+        dev.update(force=(False))
         #sleep(0.1)
     if rpi:
         if i%10 == 0:

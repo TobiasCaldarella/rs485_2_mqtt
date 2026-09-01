@@ -2,25 +2,21 @@
 import time
 
 class Katzenfenster:
-    def __init__(self, mqtt, topic, addr):
-        self.tr = None
+    def __init__(self):
+        self.rs485 = None
         self.last_val = None
         self.last_motor_current = None
         self.idx = 0
         # register mqtt topics
-        self.mqtt = mqtt
-        self.topic = topic
-        self.addr = addr
-        self.mqtt.register_topic(self.topic + '/command', lambda client, userdata, msg: self.sendCommand(msg.payload.decode("utf-8")))
-        self.mqtt.register_topic(self.topic + '/ignore_sensor_in', lambda client, userdata, msg: self.ignore_sensor('in', msg.payload.decode("utf-8")))
-        self.mqtt.register_topic(self.topic + '/ignore_sensor_out', lambda client, userdata, msg: self.ignore_sensor('out', msg.payload.decode("utf-8")))
-        self.mqtt.register_topic(self.topic + '/max_moving_current', lambda client, userdata, msg: self.set_max_current('moving', msg.payload.decode("utf-8")))
-        self.mqtt.register_topic(self.topic + '/max_stop_current', lambda client, userdata, msg: self.set_max_current('stop', msg.payload.decode("utf-8")))
         self.sensor_mask = 0b11
 
-    def set_transceiver(self, transceiver):
-        self.tr = transceiver
-
+    def set_transceiver(self, rs485_dev):
+        self.rs485 = rs485_dev
+        self.rs485.mqtt.register_topic(self.rs485.topic + '/command', lambda client, userdata, msg: self.sendCommand(msg.payload.decode("utf-8")))
+        self.rs485.mqtt.register_topic(self.rs485.topic + '/ignore_sensor_in', lambda client, userdata, msg: self.ignore_sensor('in', msg.payload.decode("utf-8")))
+        self.rs485.mqtt.register_topic(self.rs485.topic + '/ignore_sensor_out', lambda client, userdata, msg: self.ignore_sensor('out', msg.payload.decode("utf-8")))
+        self.rs485.mqtt.register_topic(self.rs485.topic + '/max_moving_current', lambda client, userdata, msg: self.set_max_current('moving', msg.payload.decode("utf-8")))
+        self.rs485.mqtt.register_topic(self.rs485.topic + '/max_stop_current', lambda client, userdata, msg: self.set_max_current('stop', msg.payload.decode("utf-8")))
 
     def set_max_current(self, current_type, val):
         stop_current = moving_current = 0x0
@@ -29,7 +25,7 @@ class Katzenfenster:
         if current_type == 'moving':
             moving_current = int(val)
         req = bytes([0x10, moving_current, stop_current])
-        rsp = self.tr.req_resp(self.addr, req, False)
+        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
         if rsp is None:
             print('Did not get any response')
         elif rsp[0] != req[0]:
@@ -38,7 +34,7 @@ class Katzenfenster:
 
     def send_sensor_mask(self):
         req = bytes([0x02, 0xab, self.sensor_mask])
-        rsp = self.tr.req_resp(self.addr, req, False)
+        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
         #print("set sensor mask %d" % self.sensor_mask)
         if rsp is None:
             print('Did not get any response')
@@ -72,37 +68,37 @@ class Katzenfenster:
         if cmd is not None:
             keep_open_min = 10
             req = bytes([0x04, keep_open_min, cmd]) # 0x0a = keep open for 10 long minutes
-            rsp = self.tr.req_resp(self.addr, req, False)
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
             if rsp is None:
                 print('Did not get any response!')
             elif rsp[0] != 0x04 or rsp[1] != keep_open_min or rsp[2] != cmd:
                 print("did not get expected response.")
 
-    def send_mqtt_motor_current(self, current, mqtt, topic):
-        mqtt.pub(topic + '/motor_current', int(current))
+    def send_mqtt_motor_current(self, current):
+        self.rs485.mqtt.pub(self.rs485.topic + '/motor_current', int(current))
 
-    def send_mqtt_update(self, pin, bank_vals, mqtt, topic):
+    def send_mqtt_update(self, pin, bank_vals):
         val = (bank_vals & (1 << pin)) != 0
         if pin == 0:
             if val == False:
                 to_send = 'OPEN'
             else:
                 to_send = 'CLOSED'
-            mqtt.pub(topic + '/fensterOeffnung', to_send)
+            self.rs485.mqtt.pub(self.rs485.topic + '/fensterOeffnung', to_send)
         elif pin == 1:
-            mqtt.pub(topic + '/opening', val)
+            self.rs485.mqtt.pub(self.rs485.topic + '/opening', val)
         elif pin == 2:
-            mqtt.pub(topic + '/closing', val)
+            self.rs485.mqtt.pub(self.rs485.topic + '/closing', val)
         elif pin == 3:
-            mqtt.pub(topic + '/sensorIn', val)
+            self.rs485.mqtt.pub(self.rs485.topic + '/sensorIn', val)
         elif pin == 4:
-            mqtt.pub(topic + '/sensorOut', val)
+            self.rs485.mqtt.pub(self.rs485.topic + '/sensorOut', val)
         elif pin == 5:
-            mqtt.pub(topic + '/sensor_in_ignored', val == False)
+            self.rs485.mqtt.pub(self.rs485.topic + '/sensor_in_ignored', val == False)
         elif pin == 6:    
-            mqtt.pub(topic + '/sensor_out_ignored', val == False)
+            self.rs485.mqtt.pub(self.rs485.topic + '/sensor_out_ignored', val == False)
 
-    def send_mqtt_update_movement(self, opening, closing, mqtt, topic):
+    def send_mqtt_update_movement(self, opening, closing):
         movement = 'Stopped'
         if opening:
             movement = 'Opening'
@@ -110,29 +106,29 @@ class Katzenfenster:
             movement = 'Closing'
         if opening and closing:
             movement = 'Error'
-        mqtt.pub(topic + '/movement', movement)
+        self.rs485.mqtt.pub(self.rs485.topic + '/movement', movement)
 
-    def update(self, addr, mqtt, topic, force):
+    def update(self, force):
         ret = True
         get_state = force
         get_error = force
         if force is False:
             req = bytes([0x0, self.idx, 0x0])
-            rsp = self.tr.req_resp(addr, req, False)
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
             if rsp is None or len(rsp) < 3: 
                 return False
             get_state = rsp[2] & 0x1
             get_error = rsp[2] & 0x8
 
         if get_state > 0:
-            ret = self.get_state(addr, mqtt, topic, force)
+            ret = self.get_state(force)
         if get_error > 0:
-            ret = ret & self.get_error(addr, mqtt, topic, force)
+            ret = ret & self.get_error(force)
         return ret
 
-    def get_error(self, addr, mqtt, topic, force):
+    def get_error(self, force):
         req = bytes([0x8, self.idx, 0x0])
-        rsp = self.tr.req_resp(addr, req, False)
+        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
         if rsp is None or len(rsp) < 3:
             return False
         err_code = rsp[2]
@@ -141,9 +137,9 @@ class Katzenfenster:
         err_time = rsp[1]
         print("Katzenfenster Error! code: %d time_from_movement_start: %d" % (err_code, err_time))
  
-    def get_state(self, addr, mqtt, topic, force):
+    def get_state(self, force):
         req = bytes([0x1, self.idx, 0x0])
-        rsp = self.tr.req_resp(addr, req, False)
+        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
         #print(rsp)
         if rsp is None:
             return False
@@ -158,24 +154,22 @@ class Katzenfenster:
             if val != self.last_val or force is True:
                 if self.last_val is None or force is True:
                     update_movement = True
-                    #print("last val: '<not-set> new val: %x; addr 0x%x, reg 0x%x" % (val, addr, self.reg))
                     for i in range(0,8):
-                        self.send_mqtt_update(i, val, mqtt, topic)
+                        self.send_mqtt_update(i, val)
                 else:
-                    #print("last val: %x new val: %x; addr 0x%x, reg 0x%x" % (self.last_val, val, addr, self.reg))
                     for i in range(0,8):
                         new = val & (1<<i)
                         old = self.last_val & (1<<i)
                         if new != old or force is True:
-                            self.send_mqtt_update(i, val, mqtt, topic)
+                            self.send_mqtt_update(i, val)
                             if i == 1 or i == 2:
                                 update_movement = True
                 self.last_val = val
             if motor_current != self.last_motor_current or force is True:
-                self.send_mqtt_motor_current(motor_current, mqtt, topic)
+                self.send_mqtt_motor_current(motor_current)
                 self.last_motor_current = motor_current
             if update_movement:
-                self.send_mqtt_update_movement(val & 1<<1, val & 1<<2, mqtt, topic)
+                self.send_mqtt_update_movement(val & 1<<1, val & 1<<2)
        
             if force is True:
                 self.send_sensor_mask()  # has to be repeated once in a while, will be reset otherwise!

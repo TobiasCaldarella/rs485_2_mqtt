@@ -3,28 +3,29 @@
 import random
 
 class RS485_Device:
-    def __init__(self, transceiver, addr, name):
+    def __init__(self, transceiver, addr, name, mqtt):
         self.tr = transceiver
         self.addr = addr
         self.modules = []
-        self.topic_suffix = name
+        self.topic = name
         self.error_counter = 0
         self.success_counter = 0
         self.update_offset = random.randrange(100)
         self.update_counter = 0
         self.available = False
+        self.mqtt = mqtt
 
     def add_module(self, module):
-        module.set_transceiver(self.tr)
+        module.set_transceiver(self)
         self.modules.append(module)
 
-    def update(self, mqtt, force):
+    def update(self, force):
         if self.update_counter == 0 or ((self.update_counter + self.update_offset) % 100) == 0:
             force = True
 
         if self.available is True or force is True:
             for m in self.modules:
-                res = m.update(self.addr, mqtt, self.topic_suffix, force)
+                res = m.update(force)
                 if res is True: # todo: detailed reporting for multi-telegram updates via double value (succ/errors)?
                     self.success_counter = self.success_counter + 1
                 else:
@@ -32,19 +33,19 @@ class RS485_Device:
             
             if self.available == False:
                 if self.success_counter > 0:
-                    mqtt.pub(self.topic_suffix + '/availability', 'ONLINE', True)
+                    self.mqtt.pub(self.topic + '/availability', 'ONLINE', True)
                     self.available = True
                 else:
-                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE', True)
-                    mqtt.pub(self.topic_suffix + '/error_rate', 0)
+                    self.mqtt.pub(self.topic + '/availability', 'OFFLINE', True)
+                    self.mqtt.pub(self.topic + '/error_rate', 0)
         
             if self.update_counter % 32 == 0:
                 if self.error_counter == 32:
                     self.available = False
-                    mqtt.pub(self.topic_suffix + '/availability', 'OFFLINE', True)
-                    mqtt.pub(self.topic_suffix + '/error_rate', 0)
+                    self.mqtt.pub(self.topic + '/availability', 'OFFLINE', True)
+                    self.mqtt.pub(self.topic + '/error_rate', 0)
                 else:
-                    mqtt.pub(self.topic_suffix + '/error_rate', (self.error_counter*100)/(self.error_counter + self.success_counter))
+                    self.mqtt.pub(self.topic + '/error_rate', (self.error_counter*100)/(self.error_counter + self.success_counter))
                 
                 self.success_counter = self.error_counter = 0
         
