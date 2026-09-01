@@ -23,7 +23,7 @@ class Dimmers:
         else:
             print("setting channel %i to %i" % (channel, val))
             req = bytes([0x80, channel, val])
-            rsp = self.tr.req_resp(self.addr, req)
+            rsp = self.tr.req_resp(self.addr, req, False)
             if rsp is None:
                 print('Did not get any response!')
             elif rsp[0] != 0x80 or rsp[1] != channel:
@@ -34,8 +34,8 @@ class Dimmers:
 
     def update(self, addr, mqtt, topic, force):
         req = bytes([0x0, 0x0, 0x0])
-        rsp = self.tr.req_resp(addr, req)
-        if rsp is None:
+        rsp = self.tr.req_resp(addr, req, False)
+        if rsp is None or len(rsp) < 2:
             print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x0))
         else:
             val = rsp[2]
@@ -43,7 +43,7 @@ class Dimmers:
                 channel = rsp[1]
                 print("got new value ping for channel %i" % channel)
                 req = bytes([0x4, channel, 0x0])
-                rsp = self.tr.req_resp(addr, req)
+                rsp = self.tr.req_resp(addr, req, False)
                 if rsp is None:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x4))
                 else:

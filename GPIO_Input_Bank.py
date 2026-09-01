@@ -16,7 +16,7 @@ class GPIO_Input_Bank:
 
     def update(self, addr, mqtt, topic, force):
         req = bytes([self.reg, self.idx])
-        rsp = self.tr.req_resp(addr, req)
+        rsp = self.tr.req_resp(addr, req, False)
         if rsp is None:
             pass
             #print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, self.reg))

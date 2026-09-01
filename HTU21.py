@@ -10,6 +10,6 @@ class HTU21:
         self.TwoFloat.set_transceiver(transceiver)
 
     def update(self, addr, mqt, topic, force):
-        self.TwoFloat.update(addr, mqt, topic, force)
+        self.TwoFloat.update(addr, mqt, topic, force, True)
 
 
