@@ -7,8 +7,6 @@ class Katzenfenster:
         self.last_val = None
         self.last_motor_current = None
         self.idx = 0
-        self.succ_cnt = 0
-        self.err_cnt = 0
         # register mqtt topics
         self.mqtt = mqtt
         self.topic = topic
@@ -115,31 +113,31 @@ class Katzenfenster:
         mqtt.pub(topic + '/movement', movement)
 
     def update(self, addr, mqtt, topic, force):
+        ret = True
         get_state = force
         get_error = force
         if force is False:
             req = bytes([0x0, self.idx, 0x0])
             rsp = self.tr.req_resp(addr, req, False)
             if rsp is None or len(rsp) < 3: 
-                self.err_cnt = self.err_cnt + 1
-                return
+                return False
             get_state = rsp[2] & 0x1
             get_error = rsp[2] & 0x8
 
         if get_state > 0:
-            self.get_state(addr, mqtt, topic, force)
+            ret = self.get_state(addr, mqtt, topic, force)
         if get_error > 0:
-            self.get_error(addr, mqtt, topic, force)
+            ret = ret & self.get_error(addr, mqtt, topic, force)
+        return ret
 
     def get_error(self, addr, mqtt, topic, force):
         req = bytes([0x8, self.idx, 0x0])
         rsp = self.tr.req_resp(addr, req, False)
         if rsp is None or len(rsp) < 3:
-            self.err_cnt = self.err_cnt + 1
-            return
+            return False
         err_code = rsp[2]
         if err_code == 0:
-            return
+            return True
         err_time = rsp[1]
         print("Katzenfenster Error! code: %d time_from_movement_start: %d" % (err_code, err_time))
  
@@ -148,21 +146,14 @@ class Katzenfenster:
         rsp = self.tr.req_resp(addr, req, False)
         #print(rsp)
         if rsp is None:
-            self.err_cnt = self.err_cnt + 1
-            #mqtt.pub(topic + '/error_counter', self.err_cnt)
-            
-            #print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, self.reg))
-        #elif rsp[1] != self.idx:
-        #    print("Wrong idx in response: expected: %d got: %d; addr 0x%x!" % (self.idx, rsp[1], addr))
+            return False
         else:
             val = rsp[2]
             motor_current=rsp[1]
             if motor_current > 0 or val & 0b10 or val & 0b100:
                 tt = time.time()
                 print("time %f, current: %d, value %x" % (tt, motor_current, val))
-            self.succ_cnt = self.succ_cnt + 1
             update_movement = False;
-            #mqtt.pub(topic + '/success_counter', self.succ_cnt)
             #print("val: %x" % val)
             if val != self.last_val or force is True:
                 if self.last_val is None or force is True:
@@ -185,15 +176,13 @@ class Katzenfenster:
                 self.last_motor_current = motor_current
             if update_movement:
                 self.send_mqtt_update_movement(val & 1<<1, val & 1<<2, mqtt, topic)
-        
-        if self.idx % 32 == 0:
-            mqtt.pub(topic + '/error_rate', (self.err_cnt*100)/(self.err_cnt + self.succ_cnt))
-            self.err_cnt = 0
-            self.succ_cnt = 0
+       
+            if force is True:
+                self.send_sensor_mask()  # has to be repeated once in a while, will be reset otherwise!
+ 
         self.idx += 1
         if self.idx > 255:
             self.idx = 0
 
-        if force is True:
-            self.send_sensor_mask()  # has to be repeated once in a while, will be reset otherwise!
+        return True
 

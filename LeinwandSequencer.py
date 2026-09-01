@@ -74,7 +74,9 @@ class LeinwandSequencer:
         # todo: force has to request everything, override response with 0xff?
         if rsp is None or len(rsp) < 2:
             print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x0))
+            return False
         else:
+            ret = True
             val = rsp[2]
             if val & 0x40:
                 if os.environ.get('DEBUG'):
@@ -87,6 +89,7 @@ class LeinwandSequencer:
                 rsp = self.tr.req_resp(addr, req, False)
                 if rsp is None:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x01))
+                    ret = False
                 else:
                     val1 = rsp[2] #sic
                     val2 = rsp[1] # sic!
@@ -109,6 +112,7 @@ class LeinwandSequencer:
                 rsp = self.tr.req_resp(addr, req, False)
                 if rsp is None:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x01))
+                    ret = False
                 else:
                     val = rsp[2]
                     if force is True or self.motor != val:
@@ -121,6 +125,7 @@ class LeinwandSequencer:
                 rsp = self.tr.req_resp(addr, req, False)
                 if rsp is None:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x01))
+                    ret = False
                 else:
                     val = rsp[2]
                     if force is True or (val & (0b11 << 4)) != (self.state & (0b11 << 4)):
@@ -132,3 +137,6 @@ class LeinwandSequencer:
                 req = bytes([0x10, 0x0, 0x0])
                 rsp = self.tr.req_resp(addr, req, False)
                 print("Got error: 0x%x" % rsp[2])
+            
+            return ret
+

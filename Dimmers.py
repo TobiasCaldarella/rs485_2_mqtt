@@ -37,6 +37,7 @@ class Dimmers:
         rsp = self.tr.req_resp(addr, req, False)
         if rsp is None or len(rsp) < 2:
             print("No (valid) response received, addr 0x%x, reg 0x%x!" % (addr, 0x0))
+            return False
         else:
             val = rsp[2]
             if val == 0x4:
@@ -49,4 +50,4 @@ class Dimmers:
                 else:
                     val = rsp[2]
                     self.send_mqtt_update(channel, val, mqtt, topic)
-            
+        return True
