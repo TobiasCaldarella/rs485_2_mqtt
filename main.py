@@ -48,7 +48,7 @@ devs[-1].add_module(LeinwandSequencer())
 i = 0
 while(True):
     for dev in devs:
-        dev.update(mqtt, force=(i==0))
+        dev.update(mqtt, force=(False))
         #sleep(0.1)
     if rpi:
         if i%10 == 0:
