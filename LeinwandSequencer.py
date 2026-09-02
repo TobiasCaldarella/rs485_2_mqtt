@@ -138,11 +138,12 @@ class LeinwandSequencer:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
                     ret = False
                 else:
-                    val = rsp[2]
-                    if force is True or (val & (0b11 << 4)) != (self.state & (0b11 << 4)):
+                    new_state = rsp[2]
+                    if force is True or (new_state & (0b11 << 4)) != (self.state & (0b11 << 4)):
                         self.send_mqtt_direction_update((val>>4)&0b11)
-                    if force is True or (val & 0x0f) != (self.state & 0x0f):
+                    if force is True or (new_state & 0x0f) != (self.state & 0x0f):
                         self.send_mqtt_state_update(val&0x0f)
+                    self.state = new_state;
 
             if val & 0x10:
                 req = bytes([0x10, 0x0, 0x0])
