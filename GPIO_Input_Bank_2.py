@@ -9,9 +9,9 @@ class GPIO_Input_Bank_2:
     def set_transceiver(self, rs485_dev):
         self.rs485 = rs485_dev
 
-    def send_mqtt_update(self, pin, bank_vals, mqtt, topic):
+    def send_mqtt_update(self, pin, bank_vals):
         val = (bank_vals & (1 << pin)) != 0
-        mqtt.pub(topic + '/GPIO/' + str(pin), val)
+        self.rs485.mqtt.pub(self.rs485.topic + '/GPIO/' + str(pin), val)
 
     def update(self, force):
         req = bytes([0x1, self.idx, 0x0])
@@ -24,13 +24,13 @@ class GPIO_Input_Bank_2:
             if val != self.last_val or force is True:
                 if self.last_val is None or force is True:
                     for i in range(0,8):
-                        self.send_mqtt_update(i, val, self.rs485.mqtt, self.rs485.topic)
+                        self.send_mqtt_update(i, val)
                 else:
                     for i in range(0,8):
                         new = val & (1<<i)
                         old = self.last_val & (1<<i)
                         if new != old or force is True:
-                            self.send_mqtt_update(i, val, mqtt, topic)
+                            self.send_mqtt_update(i, val)
                 self.last_val = val
         
         self.idx += 1
