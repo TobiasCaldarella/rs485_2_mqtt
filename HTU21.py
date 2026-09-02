@@ -9,7 +9,7 @@ class HTU21:
     def set_transceiver(self, rs485_dev):
         self.TwoFloat.set_transceiver(rs485_dev)
 
-    def update(self, force):
-        return self.TwoFloat.update(force, True)
+    def update(self, force, ping_result):
+        return self.TwoFloat.update(force, ping_result, True)
 
 

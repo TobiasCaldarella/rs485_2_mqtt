@@ -13,7 +13,7 @@ class BM280:
         mqtt.pub(topic + '/BM280/temp', temp)
         mqtt.pub(topic + '/BM280/press', press)
 
-    def update(self, force):
+    def update(self, force, ping_result):
         if not force:
             return True
 

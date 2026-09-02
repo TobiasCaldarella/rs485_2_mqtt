@@ -28,22 +28,15 @@ class Dimmers:
     def send_mqtt_update(self, channel, val, mqtt, topic):
         mqtt.pub(topic + '/Dimmers/' + str(channel), val)
 
-    def update(self, force):
-        req = bytes([0x0, 0x0, 0x0])
-        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-        if rsp is None or len(rsp) < 2:
-            print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x0))
-            return False
-        else:
-            val = rsp[2]
-            if val == 0x4:
-                channel = rsp[1]
-                print("got new value ping for channel %i" % channel)
-                req = bytes([0x4, channel, 0x0])
-                rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-                if rsp is None:
-                    print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x4))
-                else:
-                    val = rsp[2]
-                    self.send_mqtt_update(channel, val, self.rs485.mqtt, self.rs485.topic)
+    def update(self, force, ping_result):
+        if ping_result[0] == 0x4:
+            channel = ping_result[1]
+            print("got new value ping for channel %i" % channel)
+            req = bytes([0x4, channel, 0x0])
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
+            if rsp is None:
+                print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x4))
+            else:
+                val = rsp[2]
+                self.send_mqtt_update(channel, val, self.rs485.mqtt, self.rs485.topic)
         return True
