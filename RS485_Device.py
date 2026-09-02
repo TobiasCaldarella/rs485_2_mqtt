@@ -37,13 +37,13 @@ class RS485_Device:
                     self.available = True
                 else:
                     self.mqtt.pub(self.topic + '/availability', 'OFFLINE', True)
-                    self.mqtt.pub(self.topic + '/error_rate', 0)
+                    self.mqtt.pub(self.topic + '/error_rate', 100)
         
             if self.update_counter % 32 == 0:
                 if self.error_counter == 32:
                     self.available = False
                     self.mqtt.pub(self.topic + '/availability', 'OFFLINE', True)
-                    self.mqtt.pub(self.topic + '/error_rate', 0)
+                    self.mqtt.pub(self.topic + '/error_rate', 100)
                 else:
                     self.mqtt.pub(self.topic + '/error_rate', (self.error_counter*100)/(self.error_counter + self.success_counter))
                 
