@@ -125,9 +125,10 @@ class LeinwandSequencer:
                     print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
                     ret = False
                 else:
-                    val = rsp[2]
-                    if force is True or self.motor != val:
-                        self.send_mqtt_motor_active_update(val)
+                    new_motor = rsp[2]
+                    if force is True or self.motor != new_motor:
+                        self.send_mqtt_motor_active_update(new_motor)
+                        self.motor = new_motor
 
             if val & 0x04 or force:
                 if os.environ.get('DEBUG'):
@@ -140,9 +141,9 @@ class LeinwandSequencer:
                 else:
                     new_state = rsp[2]
                     if force is True or (new_state & (0b11 << 4)) != (self.state & (0b11 << 4)):
-                        self.send_mqtt_direction_update((val>>4)&0b11)
+                        self.send_mqtt_direction_update((new_state>>4)&0b11)
                     if force is True or (new_state & 0x0f) != (self.state & 0x0f):
-                        self.send_mqtt_state_update(val&0x0f)
+                        self.send_mqtt_state_update(new_state&0x0f)
                     self.state = new_state;
 
             if val & 0x10:
