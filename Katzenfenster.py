@@ -35,7 +35,7 @@ class Katzenfenster:
     def send_sensor_mask(self):
         req = bytes([0x02, 0xab, self.sensor_mask])
         rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-        print("set sensor mask %d" % self.sensor_mask)
+        #print("set sensor mask %d" % self.sensor_mask)
         if rsp is None:
             print('Did not get any response')
         elif rsp != req:
