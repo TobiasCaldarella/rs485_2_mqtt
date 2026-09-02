@@ -79,77 +79,71 @@ class LeinwandSequencer:
         self.rs485.mqtt.pub(self.rs485.topic + '/button', '1')
         self.rs485.mqtt.pub(self.rs485.topic + '/button', '0')
 
-    def update(self, force):
-        req = bytes([0x0, 0x0, 0x0]) # send ping
-        rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-        # todo: force has to request everything, override response with 0xff?
-        if rsp is None or len(rsp) < 2:
-            print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x0))
-            return False
-        else:
-            ret = True
-            val = rsp[2]
-            if val & 0x40:
-                if os.environ.get('DEBUG'):
-                    print("got button short pressed")
-                self.send_mqtt_button_short_pressed()
-            if val & 0x01 or force:
-                if os.environ.get('DEBUG'):
-                    print("Sensor state changed or update forced")
-                req = bytes([0x01, 0x0, 0x0])
-                rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-                if rsp is None:
-                    print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
-                    ret = False
-                else:
-                    val1 = rsp[2] #sic
-                    val2 = rsp[1] # sic!
-                    if force is True or self.sensor1 != val1:
-                        for i in range(0,8):
-                            if force is True or (val1 & (1<<i)) != (self.sensor1 & (1<<i)):
-                                self.send_mqtt_sensor_update(0, i, val1)
+    def update(self, force, ping_result):
+        ret = True
+        ping_result = ping_result[0]
+        if ping_result & 0x40:
+            if os.environ.get('DEBUG'):
+                print("got button short pressed")
+            self.send_mqtt_button_short_pressed()
+        
+        if ping_result & 0x01 or force:
+            if os.environ.get('DEBUG'):
+                print("Sensor state changed or update forced")
+            req = bytes([0x01, 0x0, 0x0])
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
+            if rsp is None:
+                print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
+                ret = False
+            else:
+                val1 = rsp[2] #sic
+                val2 = rsp[1] # sic!
+                if force is True or self.sensor1 != val1:
+                    for i in range(0,8):
+                        if force is True or (val1 & (1<<i)) != (self.sensor1 & (1<<i)):
+                            self.send_mqtt_sensor_update(0, i, val1)
                     
-                    if force is True or self.sensor2 != val2:
-                        for i in range(0,8):
-                            if force is True or (val2 & (1<<i)) != (self.sensor2 & (1<<i)):
-                                self.send_mqtt_sensor_update(1, i, val2)
-                    self.sensor1 = val1
-                    self.sensor2 = val2
+                if force is True or self.sensor2 != val2:
+                    for i in range(0,8):
+                        if force is True or (val2 & (1<<i)) != (self.sensor2 & (1<<i)):
+                            self.send_mqtt_sensor_update(1, i, val2)
+                self.sensor1 = val1
+                self.sensor2 = val2
             
-            if val & 0x02 or force:
-                if os.environ.get('DEBUG'):
-                    print("Motor state changed or update forced")
-                req = bytes([0x02, 0x0, 0x0])
-                rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-                if rsp is None:
-                    print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
-                    ret = False
-                else:
-                    new_motor = rsp[2]
-                    if force is True or self.motor != new_motor:
-                        self.send_mqtt_motor_active_update(new_motor)
-                        self.motor = new_motor
+        if ping_result & 0x02 or force:
+            if os.environ.get('DEBUG'):
+                print("Motor state changed or update forced")
+            req = bytes([0x02, 0x0, 0x0])
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
+            if rsp is None:
+                print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
+                ret = False
+            else:
+                new_motor = rsp[2]
+                if force is True or self.motor != new_motor:
+                    self.send_mqtt_motor_active_update(new_motor)
+                    self.motor = new_motor
 
-            if val & 0x04 or force:
-                if os.environ.get('DEBUG'):
-                    print("State-machine changed or update forced")
-                req = bytes([0x04, 0x0, 0x0])
-                rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-                if rsp is None:
-                    print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
-                    ret = False
-                else:
-                    new_state = rsp[2]
-                    if force is True or (new_state & (0b11 << 4)) != (self.state & (0b11 << 4)):
-                        self.send_mqtt_direction_update((new_state>>4)&0b11)
-                    if force is True or (new_state & 0x0f) != (self.state & 0x0f):
-                        self.send_mqtt_state_update(new_state&0x0f)
-                    self.state = new_state;
+        if ping_result & 0x04 or force:
+            if os.environ.get('DEBUG'):
+                print("State-machine changed or update forced")
+            req = bytes([0x04, 0x0, 0x0])
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
+            if rsp is None:
+                print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.rs485.addr, 0x01))
+                ret = False
+            else:
+                new_state = rsp[2]
+                if force is True or (new_state & (0b11 << 4)) != (self.state & (0b11 << 4)):
+                    self.send_mqtt_direction_update((new_state>>4)&0b11)
+                if force is True or (new_state & 0x0f) != (self.state & 0x0f):
+                    self.send_mqtt_state_update(new_state&0x0f)
+                self.state = new_state;
 
-            if val & 0x10:
-                req = bytes([0x10, 0x0, 0x0])
-                rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-                print("Got error: 0x%x" % rsp[2])
+        if ping_result & 0x10:
+            req = bytes([0x10, 0x0, 0x0])
+            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
+            print("Got error: 0x%x" % rsp[2])
             
-            return ret
+        return ret
 

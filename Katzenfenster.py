@@ -108,22 +108,12 @@ class Katzenfenster:
             movement = 'Error'
         self.rs485.mqtt.pub(self.rs485.topic + '/movement', movement)
 
-    def update(self, force):
+    def update(self, force, ping_result):
         ret = True
-        get_state = force
-        get_error = force
-        if force is False:
-            req = bytes([0x0, self.idx, 0x0])
-            rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
-            if rsp is None or len(rsp) < 3: 
-                return False
-            get_state = rsp[2] & 0x1
-            get_error = rsp[2] & 0x8
-
-        if get_state > 0:
-            ret = self.get_state(force)
-        if get_error > 0:
-            ret = ret & self.get_error(force)
+        if ping_result[0] & 0x1 or force:
+            ret &= self.get_state(force)
+        if ping_result[0] & 0x8 or force:
+            ret &= ret & self.get_error(force)
         return ret
 
     def get_error(self, force):

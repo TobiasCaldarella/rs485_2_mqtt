@@ -17,7 +17,7 @@ class TwoFloat:
         self.rs485.mqtt.pub(self.rs485.topic + '/' + self.name + '/' + self.channel1, channel1)
         self.rs485.mqtt.pub(self.rs485.topic + '/' + self.name + '/' + self.channel2, channel2)
 
-    def update(self, force, slow_request):
+    def update(self, force, ping_result, slow_request):
         ret = True
         if not force:
             return True

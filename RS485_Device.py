@@ -20,16 +20,26 @@ class RS485_Device:
         self.modules.append(module)
 
     def update(self, force):
+        success = True
         if self.update_counter == 0 or ((self.update_counter + self.update_offset) % 100) == 0:
             force = True
 
         if self.available is True or force is True:
-            for m in self.modules:
-                res = m.update(force)
-                if res is True: # todo: detailed reporting for multi-telegram updates via double value (succ/errors)?
-                    self.success_counter = self.success_counter + 1
-                else:
-                    self.error_counter = self.error_counter + 1
+            req = bytes([0x0, 0x0, 0x0]) # send ping
+            rsp = self.tr.req_resp(self.addr, req, False)
+            if rsp is None or len(rsp) < 2:
+                print("No (valid) response received, addr 0x%x, reg 0x%x!" % (self.addr, 0x0))
+                success = False
+            else:
+                ping_result = [rsp[2], rsp[1]]
+            
+                for m in self.modules:
+                    success &= m.update(force, ping_result)
+            
+            if success is True: # todo: detailed reporting for multi-telegram updates via double value (succ/errors)?
+                self.success_counter = self.success_counter + 1
+            else:
+                self.error_counter = self.error_counter + 1
             
             if self.available == False:
                 if self.success_counter > 0:
