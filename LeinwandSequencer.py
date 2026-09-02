@@ -58,10 +58,13 @@ class LeinwandSequencer:
         if state > 9:
             print("Invalid state %d" % state)
             return
-        STATES = ['IDLE', 'BEGIN', 'KLAPPEN_1',	'SEGEL_1', 'LW', 'LW2',	'SEGEL_2', 'KLAPPEN_2',	'END', 'IDLE2']
-        self.rs485.mqtt.pub(self.rs485.topic + '/state', STATES[state])
+        # 'IDLE' = leinwand unten, 'IDLE2' = leinwand oben
+        STATES = [['IDLE',100], ['BEGIN',95], ['KLAPPEN_1',85], ['SEGEL_1',70], ['LW',50], ['LW2',45], ['SEGEL_2',25], ['KLAPPEN_2',10], ['END',5], ['IDLE2',0]]
+        self.rs485.mqtt.pub(self.rs485.topic + '/state', STATES[state][0])
+        self.rs485.mqtt.pub(self.rs485.topic + '/position', STATES[state][1])
         if os.environ.get('DEBUG'):
             print("State: '%s'" % (STATES[state]))
+        
 
     def send_mqtt_direction_update(self, direction):
         DIRECTIONS = ['STOP', 'UP', 'DOWN']
