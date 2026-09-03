@@ -19,8 +19,9 @@ class TwoFloat:
 
     def update(self, force, ping_result, slow_request):
         ret = True
-        if not force:
+        if not force and not (ping_result[0] & 0x08):
             return True
+
         req = bytes([0x08, self.idx, 0x0])
         rsp = self.rs485.tr.req_resp(self.rs485.addr, req, slow_request)
         if rsp is None:
