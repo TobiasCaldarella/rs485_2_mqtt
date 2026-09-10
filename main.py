@@ -37,7 +37,7 @@ devs[-1].add_module(BM280())
 devs.append(RS485_Device(tr, 0x21, 'Kino', mqtt))
 devs[-1].add_module(GPIO_Input_Bank_2())
 devs[-1].add_module(Dimmers(4))
-devs[-1].add_module(HTU21())
+#devs[-1].add_module(HTU21())
 
 devs.append(RS485_Device(tr, 0x31, 'Katzenfenster', mqtt))
 devs[-1].add_module(Katzenfenster())

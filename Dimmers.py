@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+import binascii
+
 class Dimmers:
     def __init__(self, num_channels):
         #self.reg = register
@@ -22,8 +24,8 @@ class Dimmers:
             rsp = self.rs485.tr.req_resp(self.rs485.addr, req, False)
             if rsp is None:
                 print('Did not get any response!')
-            elif rsp[0] != 0x80 or rsp[1] != channel:
-                print("did not get expected response. got: 0x%x 0x%x 0x%x" % (rsp[0], rsp[1], rsp[2]))
+            elif len(rsp) < 2 or rsp[0] != 0x80 or rsp[1] != channel:
+                print("did not get expected response. got: %s" % (binascii.hexlify(rsp)))
 
     def send_mqtt_update(self, channel, val, mqtt, topic):
         mqtt.pub(topic + '/Dimmers/' + str(channel), val)
